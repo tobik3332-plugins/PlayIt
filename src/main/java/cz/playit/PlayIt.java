@@ -23,6 +23,24 @@ public final class PlayIt extends JavaPlugin {
     private AreaManager areaManager;
     private MusicManager musicManager;
 
+    private static class EmbeddedNoteBlockAPI extends NoteBlockAPI {
+        private PlayIt host;
+
+        @Override
+        public void doSync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTask(host, runnable);
+            }
+        }
+
+        @Override
+        public void doAsync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTaskAsynchronously(host, runnable);
+            }
+        }
+    }
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -58,16 +76,14 @@ public final class PlayIt extends JavaPlugin {
     }
 
     private void initEmbeddedNoteBlockAPI() {
-        final PlayIt hostPlugin = this;
         try {
             Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
             Unsafe unsafe = (Unsafe) unsafeField.get(null);
 
-            NoteBlockAPI instance = (NoteBlockAPI) unsafe.allocateInstance(NoteBlockAPI.class) {
-            };
-            // Pokud anonymní třída nejde přes allocateInstance, použijeme přímo NoteBlockAPI a přesměrujeme přes proxy/subclass
-            this.noteBlockAPI = createNoteBlockAdapter(unsafe, hostPlugin);
+            EmbeddedNoteBlockAPI adapter = (EmbeddedNoteBlockAPI) unsafe.allocateInstance(EmbeddedNoteBlockAPI.class);
+            adapter.host = this;
+            this.noteBlockAPI = adapter;
 
             Field pluginField = NoteBlockAPI.class.getDeclaredField("plugin");
             pluginField.setAccessible(true);
@@ -80,30 +96,6 @@ public final class PlayIt extends JavaPlugin {
             getLogger().severe("Nepodařilo se inicializovat NoteBlockAPI: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private static class EmbeddedNoteBlockAPI extends NoteBlockAPI {
-        private PlayIt host;
-
-        @Override
-        public void doSync(Runnable runnable) {
-            if (host != null && host.isEnabled()) {
-                Bukkit.getScheduler().runTask(host, runnable);
-            }
-        }
-
-        @Override
-        public void doAsync(Runnable runnable) {
-            if (host != null && host.isEnabled()) {
-                Bukkit.getScheduler().runTaskAsynchronously(host, runnable);
-            }
-        }
-    }
-
-    private NoteBlockAPI createNoteBlockAdapter(Unsafe unsafe, PlayIt hostPlugin) throws InstantiationException {
-        EmbeddedNoteBlockAPI adapter = (EmbeddedNoteBlockAPI) unsafe.allocateInstance(EmbeddedNoteBlockAPI.class);
-        adapter.host = hostPlugin;
-        return adapter;
     }
 
     @Override
