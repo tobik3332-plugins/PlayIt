@@ -8,6 +8,10 @@ settings:
   default-music-enabled: true
   # Hlasitost rádia (1 - 100)
   volume: 100
+  # Pauza v sekundách mezi koncem jedné písničky a začátkem další (0 = bez pauzy)
+  song-delay-seconds: 2
+  # Přehrávat zvuk jako čisté mono přímo u hráče (true = stejná hlasitost ze všech stran, false = směrové stereo)
+  mono-sound: true
   # Povolit 10 oktáv místo standardních 2 (doporučeno true pro moderní .nbs skladby)
   enable-10-octave: true
   # Zobrazovat při změně písničky upozornění v ActionBaru
