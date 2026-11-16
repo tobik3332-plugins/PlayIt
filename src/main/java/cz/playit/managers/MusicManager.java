@@ -1,5 +1,6 @@
 package cz.playit.managers;
 
+import com.xxmicloxx.NoteBlockAPI.NoteBlockAPI;
 import com.xxmicloxx.NoteBlockAPI.event.SongEndEvent;
 import com.xxmicloxx.NoteBlockAPI.model.Song;
 import com.xxmicloxx.NoteBlockAPI.model.playmode.MonoMode;
@@ -128,6 +129,7 @@ public class MusicManager implements Listener {
 
         // Připojíme všechny hráče, kteří jsou v oblasti a mají zapnutou hudbu
         for (Player player : Bukkit.getOnlinePlayers()) {
+            applyPlayerVolume(player);
             if (shouldHearMusic(player)) {
                 radioPlayer.addPlayer(player);
             }
@@ -147,12 +149,17 @@ public class MusicManager implements Listener {
         radioPlayer.setVolume(volume);
         radioPlayer.setEnable10Octave(tenOctave);
 
-        // MonoMode přehraje zvuk přímo v místě hlavy hráče -> stejná hlasitost ze všech stran (bez tahání na North)
         if (monoSound) {
             radioPlayer.setChannelMode(new MonoMode());
         } else {
             radioPlayer.setChannelMode(new MonoStereoMode());
         }
+    }
+
+    public void applyPlayerVolume(Player player) {
+        if (player == null) return;
+        int vol = plugin.getDataManager().getPlayerVolume(player.getUniqueId());
+        NoteBlockAPI.setPlayerVolume(player, (byte) vol);
     }
 
     public void stopRadio() {
@@ -173,6 +180,7 @@ public class MusicManager implements Listener {
     }
 
     public void updatePlayerState(Player player) {
+        applyPlayerVolume(player);
         if (radioPlayer == null) return;
 
         boolean shouldHear = shouldHearMusic(player);
@@ -221,7 +229,6 @@ public class MusicManager implements Listener {
             int delaySeconds = Math.max(0, plugin.getConfig().getInt("settings.song-delay-seconds", 2));
             long delayTicks = delaySeconds * 20L;
 
-            // Vyčistíme ukončený přehrávač během pauzy
             if (radioPlayer != null) {
                 radioPlayer.destroy();
                 radioPlayer = null;
