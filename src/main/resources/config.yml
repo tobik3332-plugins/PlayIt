@@ -1,0 +1,56 @@
+# ==========================================
+#          PlayIt - Konfigurace
+# ==========================================
+# Podporuje klasické '&' kódy (&a, &l, &#RRGGBB) i MiniMessage (<gradient:...>)
+
+settings:
+  # Výchozí stav hudby pro nové hráče (true = zapnuto, false = vypnuto)
+  default-music-enabled: true
+  # Hlasitost rádia (1 - 100)
+  volume: 100
+  # Povolit 10 oktáv místo standardních 2 (doporučeno true pro moderní .nbs skladby)
+  enable-10-octave: true
+  # Zobrazovat při změně písničky upozornění v ActionBaru
+  actionbar-enabled: true
+
+messages:
+  prefix: "&8[&bPlayIt&8] &r"
+  no-permission: "%prefix%&cNa tento příkaz nemáš oprávnění!"
+  only-players: "%prefix%&cTento příkaz může použít pouze hráč ve hře!"
+
+  # Hráčské příkazy (/music)
+  music-usage: "%prefix%&7Použití: &e/music <on|off|playing>"
+  music-enabled: "%prefix%&aHudba byla zapnuta."
+  music-already-enabled: "%prefix%&7Hudbu už máš zapnutou."
+  music-disabled: "%prefix%&cHudba byla vypnuta."
+  music-already-disabled: "%prefix%&7Hudbu už máš vypnutou."
+  music-playing: "%prefix%&7Právě hraje: &b%song%"
+  music-nothing-playing: "%prefix%&7Momentálně nehraje žádná písnička."
+
+  # ActionBar při spuštění nové skladby
+  actionbar-now-playing: "&b♫ &7Právě hraje: &f%song% &b♫"
+
+  # Admin příkazy (/amusic)
+  admin-usage: "%prefix%&7Použití: &e/amusic <play|skip|reload|area>"
+  reload-success: "%prefix%&aPlugin byl úspěšně reloadován! Načteno skladeb: &e%songs%&a, oblastí: &e%areas%&a."
+  song-not-found: "%prefix%&cPísnička &e%song% &cnebyla nalezena ve složce songs!"
+  no-songs-loaded: "%prefix%&cVe složce songs nejsou žádné .nbs písničky!"
+  song-played: "%prefix%&aSpuštěna písnička: &e%song%"
+  song-skipped: "%prefix%&aPísnička přeskočena. Nyní hraje: &e%song%"
+
+  # Správa oblastí (/amusic area)
+  area-usage: "%prefix%&7Použití: &e/amusic area <create|pos1|pos2|delete|list> [název]"
+  area-already-exists: "%prefix%&cOblast s názvem &e%area% &cuž existuje!"
+  area-not-found: "%prefix%&cOblast s názvem &e%area% &cneexistuje!"
+  area-create-started: "%prefix%&aZahájeno vytváření oblasti &e%area%&a. Nastav body pomocí &f/amusic area pos1 %area% &aa &f/amusic area pos2 %area%&a, poté znovu napiš &f/amusic area create %area%&a."
+  area-not-started: "%prefix%&cNejprve zahaj vytváření oblasti příkazem &e/amusic area create %area%&c!"
+  area-pos1-set: "%prefix%&aBod &ePOS1 &apro oblast &e%area% &abyl uložen na tvé pozici."
+  area-pos2-set: "%prefix%&aBod &ePOS2 &apro oblast &e%area% &abyl uložen na tvé pozici."
+  area-missing-positions: "%prefix%&cNemáš nastavené oba body (pos1 a pos2) pro oblast &e%area%&c!"
+  area-different-worlds: "%prefix%&cBody pos1 a pos2 pro oblast &e%area% &cmusí být ve stejném světě!"
+  area-created: "%prefix%&aOblast &e%area% &abyla úspěšně vytvořena a uložena!"
+  area-delete-confirm: "%prefix%&eOpravdu chceš smazat oblast &c%area%&e? Zopakuj příkaz &f/amusic area delete %area% &edo 5 sekund pro potvrzení."
+  area-deleted: "%prefix%&aOblast &e%area% &abyla úspěšně smazána."
+  area-list-header: "%prefix%&7Seznam aktivních oblastí (&e%count%&7):"
+  area-list-item: " &8- &b%area% &7(%world%)"
+  area-list-empty: "%prefix%&7Zatím nejsou vytvořené žádné oblasti."
