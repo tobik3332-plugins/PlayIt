@@ -8,10 +8,10 @@ description: Lightweight radio NBS music player for custom areas.
 commands:
   music:
     description: Player music controls
-    usage: /music <on|off|playing>
+    usage: /music <on|off|playing|volume>
   amusic:
     description: Admin music and area controls
-    usage: /amusic <play|skip|reload|area>
+    usage: /amusic <play|skip|list|reload|area>
 
 permissions:
   playit.on-off:
@@ -20,8 +20,11 @@ permissions:
   playit.playing:
     description: Allows checking currently playing song
     default: true
+  playit.volume:
+    description: Allows changing personal music volume
+    default: true
   playit.admin:
-    description: Allows managing areas, playing and skipping songs
+    description: Allows managing areas, listing, playing and skipping songs
     default: op
   playit.reload:
     description: Allows reloading the PlayIt plugin
