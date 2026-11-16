@@ -2,6 +2,8 @@ package cz.playit.managers;
 
 import com.xxmicloxx.NoteBlockAPI.event.SongEndEvent;
 import com.xxmicloxx.NoteBlockAPI.model.Song;
+import com.xxmicloxx.NoteBlockAPI.model.playmode.MonoMode;
+import com.xxmicloxx.NoteBlockAPI.model.playmode.MonoStereoMode;
 import com.xxmicloxx.NoteBlockAPI.songplayer.RadioSongPlayer;
 import com.xxmicloxx.NoteBlockAPI.utils.NBSDecoder;
 import cz.playit.PlayIt;
@@ -10,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.util.*;
@@ -26,6 +29,8 @@ public class MusicManager implements Listener {
 
     private RadioSongPlayer radioPlayer;
     private String currentSongName = null;
+    private String lastPlayedSongName = null;
+    private BukkitTask nextSongTask = null;
 
     public MusicManager(PlayIt plugin) {
         this.plugin = plugin;
@@ -69,7 +74,7 @@ public class MusicManager implements Listener {
             stopRadio();
             return;
         }
-        if (radioPlayer == null || !radioPlayer.isPlaying()) {
+        if ((radioPlayer == null || !radioPlayer.isPlaying()) && nextSongTask == null) {
             playRandomNext();
         } else {
             applySettingsToPlayer();
@@ -78,6 +83,8 @@ public class MusicManager implements Listener {
     }
 
     public void playRandomNext() {
+        cancelPendingNextSong();
+
         if (songNames.isEmpty()) {
             stopRadio();
             return;
@@ -92,7 +99,7 @@ public class MusicManager implements Listener {
             do {
                 index = ThreadLocalRandom.current().nextInt(songNames.size());
                 nextName = songNames.get(index);
-            } while (nextName.equalsIgnoreCase(currentSongName));
+            } while (nextName.equalsIgnoreCase(lastPlayedSongName));
         }
 
         playSong(nextName);
@@ -104,6 +111,8 @@ public class MusicManager implements Listener {
             return false;
         }
 
+        cancelPendingNextSong();
+
         // Získání přesného názvu s původními velkými/malými písmeny
         String displaySongName = songNames.stream()
                 .filter(n -> n.equalsIgnoreCase(songName))
@@ -113,6 +122,7 @@ public class MusicManager implements Listener {
         stopRadio();
 
         this.currentSongName = displaySongName;
+        this.lastPlayedSongName = displaySongName;
         this.radioPlayer = new RadioSongPlayer(song);
         applySettingsToPlayer();
 
@@ -132,17 +142,34 @@ public class MusicManager implements Listener {
         if (radioPlayer == null) return;
         byte volume = (byte) Math.max(0, Math.min(100, plugin.getConfig().getInt("settings.volume", 100)));
         boolean tenOctave = plugin.getConfig().getBoolean("settings.enable-10-octave", true);
+        boolean monoSound = plugin.getConfig().getBoolean("settings.mono-sound", true);
+
         radioPlayer.setVolume(volume);
         radioPlayer.setEnable10Octave(tenOctave);
+
+        // MonoMode přehraje zvuk přímo v místě hlavy hráče -> stejná hlasitost ze všech stran (bez tahání na North)
+        if (monoSound) {
+            radioPlayer.setChannelMode(new MonoMode());
+        } else {
+            radioPlayer.setChannelMode(new MonoStereoMode());
+        }
     }
 
     public void stopRadio() {
+        cancelPendingNextSong();
         if (radioPlayer != null) {
             radioPlayer.setPlaying(false);
             radioPlayer.destroy();
             radioPlayer = null;
         }
         currentSongName = null;
+    }
+
+    private void cancelPendingNextSong() {
+        if (nextSongTask != null) {
+            nextSongTask.cancel();
+            nextSongTask = null;
+        }
     }
 
     public void updatePlayerState(Player player) {
@@ -191,8 +218,25 @@ public class MusicManager implements Listener {
     @EventHandler
     public void onSongEnd(SongEndEvent event) {
         if (radioPlayer != null && event.getSongPlayer().equals(radioPlayer)) {
-            // Spustí další skladbu na hlavním vlákně serveru
-            Bukkit.getScheduler().runTask(plugin, this::playRandomNext);
+            int delaySeconds = Math.max(0, plugin.getConfig().getInt("settings.song-delay-seconds", 2));
+            long delayTicks = delaySeconds * 20L;
+
+            // Vyčistíme ukončený přehrávač během pauzy
+            if (radioPlayer != null) {
+                radioPlayer.destroy();
+                radioPlayer = null;
+            }
+            currentSongName = null;
+
+            if (delayTicks <= 0L) {
+                Bukkit.getScheduler().runTask(plugin, this::playRandomNext);
+            } else {
+                cancelPendingNextSong();
+                nextSongTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    nextSongTask = null;
+                    playRandomNext();
+                }, delayTicks);
+            }
         }
     }
 
