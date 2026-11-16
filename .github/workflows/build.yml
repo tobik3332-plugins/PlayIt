@@ -1,0 +1,54 @@
+name: Build PlayIt JAR
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Calculate dynamic version (stovky.desitky.jednotky)
+        id: version
+        run: |
+          NUM=${{ github.run_number }}
+          HUNDREDS=$((NUM / 100))
+          TENS=$(((NUM / 10) % 10))
+          ONES=$((NUM % 10))
+          VERSION="${HUNDREDS}.${TENS}.${ONES}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Generovaná verze: PlayIt-${VERSION}.jar"
+
+      - name: Build with Maven
+        run: mvn versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false && mvn clean package
+
+      - name: Upload JAR to Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlayIt-${{ steps.version.outputs.version }}
+          path: target/PlayIt-${{ steps.version.outputs.version }}.jar
+
+      - name: Create GitHub Release with JAR
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: PlayIt v${{ steps.version.outputs.version }}
+          files: target/PlayIt-${{ steps.version.outputs.version }}.jar
+          generate_release_notes: true
