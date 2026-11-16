@@ -1,0 +1,28 @@
+name: PlayIt
+version: '${project.version}'
+main: cz.playit.PlayIt
+api-version: '1.21'
+author: PlayIt
+description: Lightweight radio NBS music player for custom areas.
+
+commands:
+  music:
+    description: Player music controls
+    usage: /music <on|off|playing>
+  amusic:
+    description: Admin music and area controls
+    usage: /amusic <play|skip|reload|area>
+
+permissions:
+  playit.on-off:
+    description: Allows toggling music on or off
+    default: true
+  playit.playing:
+    description: Allows checking currently playing song
+    default: true
+  playit.admin:
+    description: Allows managing areas, playing and skipping songs
+    default: op
+  playit.reload:
+    description: Allows reloading the PlayIt plugin
+    default: op
