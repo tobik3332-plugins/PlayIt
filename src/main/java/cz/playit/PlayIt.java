@@ -15,6 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PlayIt extends JavaPlugin {
 
@@ -85,13 +86,17 @@ public final class PlayIt extends JavaPlugin {
             adapter.host = this;
             this.noteBlockAPI = adapter;
 
-            Field pluginField = NoteBlockAPI.class.getDeclaredField("plugin");
-            pluginField.setAccessible(true);
-            pluginField.set(null, this.noteBlockAPI);
-
-            Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
-            disablingField.setAccessible(true);
-            disablingField.set(this.noteBlockAPI, false);
+            // Inicializace interních map v NoteBlockAPI, které se běžně tvoří v konstruktoru
+            for (Field field : NoteBlockAPI.class.getDeclaredFields()) {
+                field.setAccessible(true);
+                if (field.getName().equals("plugin")) {
+                    field.set(null, this.noteBlockAPI);
+                } else if (field.getName().equals("disabling")) {
+                    field.set(this.noteBlockAPI, false);
+                } else if (field.getName().equals("playingSongs") || field.getName().equals("playerVolume")) {
+                    field.set(this.noteBlockAPI, new ConcurrentHashMap<>());
+                }
+            }
         } catch (Exception e) {
             getLogger().severe("Nepodařilo se inicializovat NoteBlockAPI: " + e.getMessage());
             e.printStackTrace();
