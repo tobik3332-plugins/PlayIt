@@ -1,5 +1,6 @@
 package cz.playit;
 
+import com.xxmicloxx.NoteBlockAPI.NoteBlockAPI;
 import cz.playit.commands.AdminMusicCommand;
 import cz.playit.commands.MusicCommand;
 import cz.playit.listeners.PlayerListener;
@@ -13,6 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PlayIt extends JavaPlugin {
 
+    private NoteBlockAPI noteBlockAPI;
     private DataManager dataManager;
     private AreaManager areaManager;
     private MusicManager musicManager;
@@ -20,6 +22,10 @@ public final class PlayIt extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+
+        // Inicializace vestavěného NoteBlockAPI enginu uvnitř našeho pluginu
+        this.noteBlockAPI = new NoteBlockAPI(this);
+        this.noteBlockAPI.onEnable();
 
         this.dataManager = new DataManager(this);
         this.areaManager = new AreaManager(this);
@@ -52,6 +58,9 @@ public final class PlayIt extends JavaPlugin {
     public void onDisable() {
         if (musicManager != null) {
             musicManager.stopRadio();
+        }
+        if (noteBlockAPI != null) {
+            noteBlockAPI.onDisable();
         }
         if (dataManager != null) {
             dataManager.saveSync();
