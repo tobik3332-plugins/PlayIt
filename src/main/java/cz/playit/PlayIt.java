@@ -10,10 +10,10 @@ import cz.playit.managers.MusicManager;
 import cz.playit.utils.ColorUtil;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.Server;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
+
+import java.lang.reflect.Field;
 
 public final class PlayIt extends JavaPlugin {
 
@@ -26,15 +26,19 @@ public final class PlayIt extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        // Inicializace vestavěného NoteBlockAPI napojeného přímo na lifecycle PlayIt
+        // Inicializace vestavěného NoteBlockAPI napojeného přímo na scheduler PlayIt
         final PlayIt hostPlugin = this;
         this.noteBlockAPI = new NoteBlockAPI() {
             @Override
             public void onEnable() {
                 try {
-                    var field = NoteBlockAPI.class.getDeclaredField("plugin");
-                    field.setAccessible(true);
-                    field.set(null, this);
+                    Field pluginField = NoteBlockAPI.class.getDeclaredField("plugin");
+                    pluginField.setAccessible(true);
+                    pluginField.set(null, this);
+
+                    Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
+                    disablingField.setAccessible(true);
+                    disablingField.set(this, false);
                 } catch (Exception e) {
                     hostPlugin.getLogger().severe("Nepodařilo se inicializovat NoteBlockAPI: " + e.getMessage());
                 }
@@ -42,6 +46,12 @@ public final class PlayIt extends JavaPlugin {
 
             @Override
             public void onDisable() {
+                try {
+                    Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
+                    disablingField.setAccessible(true);
+                    disablingField.set(this, true);
+                } catch (Exception ignored) {
+                }
             }
 
             @Override
@@ -56,31 +66,6 @@ public final class PlayIt extends JavaPlugin {
                 if (hostPlugin.isEnabled()) {
                     Bukkit.getScheduler().runTaskAsynchronously(hostPlugin, runnable);
                 }
-            }
-
-            @Override
-            public BukkitTask runSyncDelayed(Runnable runnable, long delay) {
-                return Bukkit.getScheduler().runTaskLater(hostPlugin, runnable, delay);
-            }
-
-            @Override
-            public BukkitTask runAsyncDelayed(Runnable runnable, long delay) {
-                return Bukkit.getScheduler().runTaskLaterAsynchronously(hostPlugin, runnable, delay);
-            }
-
-            @Override
-            public BukkitTask runSyncTimer(Runnable runnable, long delay, long period) {
-                return Bukkit.getScheduler().runTaskTimer(hostPlugin, runnable, delay, period);
-            }
-
-            @Override
-            public BukkitTask runAsyncTimer(Runnable runnable, long delay, long period) {
-                return Bukkit.getScheduler().runTaskTimerAsynchronously(hostPlugin, runnable, delay, period);
-            }
-
-            @Override
-            public Server getServer() {
-                return hostPlugin.getServer();
             }
         };
         this.noteBlockAPI.onEnable();
