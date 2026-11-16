@@ -2,6 +2,9 @@ package cz.playit.commands;
 
 import cz.playit.PlayIt;
 import cz.playit.managers.AreaManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -70,11 +73,40 @@ public class AdminMusicCommand implements CommandExecutor, TabCompleter {
                 String actualName = plugin.getMusicManager().getCurrentSongName();
                 sender.sendMessage(plugin.getMessage("song-skipped", "%song%", actualName != null ? actualName : ""));
             }
+            case "list" -> handleSongList(sender);
             case "area" -> handleAreaCommand(sender, args);
             default -> sender.sendMessage(plugin.getMessage("admin-usage"));
         }
 
         return true;
+    }
+
+    private void handleSongList(CommandSender sender) {
+        List<String> songs = plugin.getMusicManager().getSongNames();
+        if (songs.isEmpty()) {
+            sender.sendMessage(plugin.getMessage("no-songs-loaded"));
+            return;
+        }
+
+        sender.sendMessage(plugin.getMessage("song-list-header"));
+
+        Component separator = plugin.getMessage("song-list-separator");
+        Component listLine = Component.empty();
+
+        for (int i = 0; i < songs.size(); i++) {
+            String songName = songs.get(i);
+            Component hoverText = plugin.getMessage("song-list-hover", "%song%", songName);
+            Component songComponent = plugin.getMessage("song-list-item", "%song%", songName)
+                    .hoverEvent(HoverEvent.showText(hoverText))
+                    .clickEvent(ClickEvent.runCommand("/amusic play " + songName));
+
+            if (i > 0) {
+                listLine = listLine.append(separator);
+            }
+            listLine = listLine.append(songComponent);
+        }
+
+        sender.sendMessage(listLine);
     }
 
     private void handleAreaCommand(CommandSender sender, String[] args) {
@@ -179,6 +211,7 @@ public class AdminMusicCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("playit.admin")) {
                 if ("play".startsWith(input)) completions.add("play");
                 if ("skip".startsWith(input)) completions.add("skip");
+                if ("list".startsWith(input)) completions.add("list");
                 if ("area".startsWith(input)) completions.add("area");
             }
             if (sender.hasPermission("playit.reload")) {
