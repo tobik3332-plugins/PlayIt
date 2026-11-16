@@ -12,6 +12,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
@@ -26,49 +27,8 @@ public final class PlayIt extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        // Inicializace vestavěného NoteBlockAPI napojeného přímo na scheduler PlayIt
-        final PlayIt hostPlugin = this;
-        this.noteBlockAPI = new NoteBlockAPI() {
-            @Override
-            public void onEnable() {
-                try {
-                    Field pluginField = NoteBlockAPI.class.getDeclaredField("plugin");
-                    pluginField.setAccessible(true);
-                    pluginField.set(null, this);
-
-                    Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
-                    disablingField.setAccessible(true);
-                    disablingField.set(this, false);
-                } catch (Exception e) {
-                    hostPlugin.getLogger().severe("Nepodařilo se inicializovat NoteBlockAPI: " + e.getMessage());
-                }
-            }
-
-            @Override
-            public void onDisable() {
-                try {
-                    Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
-                    disablingField.setAccessible(true);
-                    disablingField.set(this, true);
-                } catch (Exception ignored) {
-                }
-            }
-
-            @Override
-            public void doSync(Runnable runnable) {
-                if (hostPlugin.isEnabled()) {
-                    Bukkit.getScheduler().runTask(hostPlugin, runnable);
-                }
-            }
-
-            @Override
-            public void doAsync(Runnable runnable) {
-                if (hostPlugin.isEnabled()) {
-                    Bukkit.getScheduler().runTaskAsynchronously(hostPlugin, runnable);
-                }
-            }
-        };
-        this.noteBlockAPI.onEnable();
+        // Inicializace vestavěného NoteBlockAPI bez spuštění duplicitního JavaPlugin konstruktoru
+        initEmbeddedNoteBlockAPI();
 
         this.dataManager = new DataManager(this);
         this.areaManager = new AreaManager(this);
@@ -97,13 +57,67 @@ public final class PlayIt extends JavaPlugin {
         getLogger().info("PlayIt byl úspěšně spuštěn!");
     }
 
+    private void initEmbeddedNoteBlockAPI() {
+        final PlayIt hostPlugin = this;
+        try {
+            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+            unsafeField.setAccessible(true);
+            Unsafe unsafe = (Unsafe) unsafeField.get(null);
+
+            NoteBlockAPI instance = (NoteBlockAPI) unsafe.allocateInstance(NoteBlockAPI.class) {
+            };
+            // Pokud anonymní třída nejde přes allocateInstance, použijeme přímo NoteBlockAPI a přesměrujeme přes proxy/subclass
+            this.noteBlockAPI = createNoteBlockAdapter(unsafe, hostPlugin);
+
+            Field pluginField = NoteBlockAPI.class.getDeclaredField("plugin");
+            pluginField.setAccessible(true);
+            pluginField.set(null, this.noteBlockAPI);
+
+            Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
+            disablingField.setAccessible(true);
+            disablingField.set(this.noteBlockAPI, false);
+        } catch (Exception e) {
+            getLogger().severe("Nepodařilo se inicializovat NoteBlockAPI: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static class EmbeddedNoteBlockAPI extends NoteBlockAPI {
+        private PlayIt host;
+
+        @Override
+        public void doSync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTask(host, runnable);
+            }
+        }
+
+        @Override
+        public void doAsync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTaskAsynchronously(host, runnable);
+            }
+        }
+    }
+
+    private NoteBlockAPI createNoteBlockAdapter(Unsafe unsafe, PlayIt hostPlugin) throws InstantiationException {
+        EmbeddedNoteBlockAPI adapter = (EmbeddedNoteBlockAPI) unsafe.allocateInstance(EmbeddedNoteBlockAPI.class);
+        adapter.host = hostPlugin;
+        return adapter;
+    }
+
     @Override
     public void onDisable() {
         if (musicManager != null) {
             musicManager.stopRadio();
         }
         if (noteBlockAPI != null) {
-            noteBlockAPI.onDisable();
+            try {
+                Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
+                disablingField.setAccessible(true);
+                disablingField.set(noteBlockAPI, true);
+            } catch (Exception ignored) {
+            }
         }
         if (dataManager != null) {
             dataManager.saveSync();
