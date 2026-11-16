@@ -1,6 +1,7 @@
 package cz.playit;
 
 import com.xxmicloxx.NoteBlockAPI.NoteBlockAPI;
+import com.xxmicloxx.NoteBlockAPI.NoteBlockPlayerMain;
 import cz.playit.commands.AdminMusicCommand;
 import cz.playit.commands.MusicCommand;
 import cz.playit.listeners.PlayerListener;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PlayIt extends JavaPlugin {
 
     private NoteBlockAPI noteBlockAPI;
+    private NoteBlockPlayerMain legacyNoteBlockMain;
     private DataManager dataManager;
     private AreaManager areaManager;
     private MusicManager musicManager;
@@ -42,11 +44,29 @@ public final class PlayIt extends JavaPlugin {
         }
     }
 
+    private static class EmbeddedNoteBlockPlayerMain extends NoteBlockPlayerMain {
+        private PlayIt host;
+
+        @Override
+        public void doSync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTask(host, runnable);
+            }
+        }
+
+        @Override
+        public void doAsync(Runnable runnable) {
+            if (host != null && host.isEnabled()) {
+                Bukkit.getScheduler().runTaskAsynchronously(host, runnable);
+            }
+        }
+    }
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        // Inicializace vestavěného NoteBlockAPI bez spuštění duplicitního JavaPlugin konstruktoru
+        // Inicializace vestavěného NoteBlockAPI (včetně legacy bridge) bez duplicitního JavaPlugin konstruktoru
         initEmbeddedNoteBlockAPI();
 
         this.dataManager = new DataManager(this);
@@ -76,25 +96,38 @@ public final class PlayIt extends JavaPlugin {
         getLogger().info("PlayIt byl úspěšně spuštěn!");
     }
 
+    @SuppressWarnings("deprecation")
     private void initEmbeddedNoteBlockAPI() {
         try {
             Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
             Unsafe unsafe = (Unsafe) unsafeField.get(null);
 
+            // 1. Hlavní NoteBlockAPI instance
             EmbeddedNoteBlockAPI adapter = (EmbeddedNoteBlockAPI) unsafe.allocateInstance(EmbeddedNoteBlockAPI.class);
             adapter.host = this;
             this.noteBlockAPI = adapter;
 
-            // Inicializace interních map v NoteBlockAPI, které se běžně tvoří v konstruktoru
             for (Field field : NoteBlockAPI.class.getDeclaredFields()) {
                 field.setAccessible(true);
-                if (field.getName().equals("plugin")) {
-                    field.set(null, this.noteBlockAPI);
-                } else if (field.getName().equals("disabling")) {
-                    field.set(this.noteBlockAPI, false);
-                } else if (field.getName().equals("playingSongs") || field.getName().equals("playerVolume")) {
-                    field.set(this.noteBlockAPI, new ConcurrentHashMap<>());
+                switch (field.getName()) {
+                    case "plugin" -> field.set(null, this.noteBlockAPI);
+                    case "disabling" -> field.set(this.noteBlockAPI, false);
+                    case "playingSongs", "playerVolume" -> field.set(this.noteBlockAPI, new ConcurrentHashMap<>());
+                }
+            }
+
+            // 2. Legacy NoteBlockPlayerMain instance (odstraní WARN při CallUpdate)
+            EmbeddedNoteBlockPlayerMain legacyAdapter = (EmbeddedNoteBlockPlayerMain) unsafe.allocateInstance(EmbeddedNoteBlockPlayerMain.class);
+            legacyAdapter.host = this;
+            this.legacyNoteBlockMain = legacyAdapter;
+
+            for (Field field : NoteBlockPlayerMain.class.getDeclaredFields()) {
+                field.setAccessible(true);
+                switch (field.getName()) {
+                    case "plugin" -> field.set(null, this.legacyNoteBlockMain);
+                    case "disabling" -> field.set(this.legacyNoteBlockMain, false);
+                    case "playingSongs", "playerVolume" -> field.set(this.legacyNoteBlockMain, new ConcurrentHashMap<>());
                 }
             }
         } catch (Exception e) {
@@ -104,6 +137,7 @@ public final class PlayIt extends JavaPlugin {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void onDisable() {
         if (musicManager != null) {
             musicManager.stopRadio();
@@ -113,6 +147,14 @@ public final class PlayIt extends JavaPlugin {
                 Field disablingField = NoteBlockAPI.class.getDeclaredField("disabling");
                 disablingField.setAccessible(true);
                 disablingField.set(noteBlockAPI, true);
+            } catch (Exception ignored) {
+            }
+        }
+        if (legacyNoteBlockMain != null) {
+            try {
+                Field disablingField = NoteBlockPlayerMain.class.getDeclaredField("disabling");
+                disablingField.setAccessible(true);
+                disablingField.set(legacyNoteBlockMain, true);
             } catch (Exception ignored) {
             }
         }
