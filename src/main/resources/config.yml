@@ -6,7 +6,9 @@
 settings:
   # Výchozí stav hudby pro nové hráče (true = zapnuto, false = vypnuto)
   default-music-enabled: true
-  # Hlasitost rádia (1 - 100)
+  # Výchozí hlasitost pro nové hráče v procentech (1 - 100)
+  default-player-volume: 25
+  # Globální hlasitost rádia (1 - 100)
   volume: 100
   # Pauza v sekundách mezi koncem jedné písničky a začátkem další (0 = bez pauzy)
   song-delay-seconds: 2
@@ -23,24 +25,33 @@ messages:
   only-players: "%prefix%&cTento příkaz může použít pouze hráč ve hře!"
 
   # Hráčské příkazy (/music)
-  music-usage: "%prefix%&7Použití: &e/music <on|off|playing>"
+  music-usage: "%prefix%&7Použití: &e/music <on|off|playing|volume>"
   music-enabled: "%prefix%&aHudba byla zapnuta."
   music-already-enabled: "%prefix%&7Hudbu už máš zapnutou."
   music-disabled: "%prefix%&cHudba byla vypnuta."
   music-already-disabled: "%prefix%&7Hudbu už máš vypnutou."
   music-playing: "%prefix%&7Právě hraje: &b%song%"
   music-nothing-playing: "%prefix%&7Momentálně nehraje žádná písnička."
+  music-volume-current: "%prefix%&7Tvá aktuální hlasitost hudby je: &b%volume%%"
+  music-volume-set: "%prefix%&aHlasitost hudby byla nastavena na &e%volume%%&a."
+  music-volume-invalid: "%prefix%&cZadej platné číslo od 1 do 100!"
 
   # ActionBar při spuštění nové skladby
   actionbar-now-playing: "&b♫ &7Právě hraje: &f%song% &b♫"
 
   # Admin příkazy (/amusic)
-  admin-usage: "%prefix%&7Použití: &e/amusic <play|skip|reload|area>"
+  admin-usage: "%prefix%&7Použití: &e/amusic <play|skip|list|reload|area>"
   reload-success: "%prefix%&aPlugin byl úspěšně reloadován! Načteno skladeb: &e%songs%&a, oblastí: &e%areas%&a."
   song-not-found: "%prefix%&cPísnička &e%song% &cnebyla nalezena ve složce songs!"
   no-songs-loaded: "%prefix%&cVe složce songs nejsou žádné .nbs písničky!"
   song-played: "%prefix%&aSpuštěna písnička: &e%song%"
   song-skipped: "%prefix%&aPísnička přeskočena. Nyní hraje: &e%song%"
+
+  # Seznam písniček (/amusic list)
+  song-list-header: "&7Seznam Písniček:"
+  song-list-item: "&b%song%"
+  song-list-separator: "&7, "
+  song-list-hover: "&eKlikni pro přehrání &f%song%"
 
   # Správa oblastí (/amusic area)
   area-usage: "%prefix%&7Použití: &e/amusic area <create|pos1|pos2|delete|list> [název]"
